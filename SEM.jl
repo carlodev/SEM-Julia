@@ -5,6 +5,7 @@ using LinearAlgebra
 using PlotlyBase
 using BenchmarkTools
 using Statistics
+using FFTW #For fast fourier transformation
 
 "Inital and inlet turbulent conditions, from paper 10.1016/j.ijheatfluidflow.2006.02.006"
 
@@ -184,6 +185,7 @@ function convect_eddy(dt, Eddy, U₀, σ, Vbinfo)
     return Eddy
 end
 
+"The velocity in the 3 directions is computed in each point provided in x"
 function compute_uᵢₚ(x::Vector{Vector{Float64}}, dt::Float64, Eddies::Vector{SEM_EDDY}, U₀::Float64, Vbinfo::Virtual_Box)
     contribution = zeros(length(x),3)
     for j = 1:1:length(Eddies)
@@ -212,7 +214,7 @@ function create_vector_points(x, y, z)
     return vector_points
 end
 
-
+"Compute the acutual velocity and the turbulent kinetic energy. The convective velocity is just in the x direction"
 function compute_U_k(q::Matrix{Float64}, A::Matrix{Float64}, U₀::Float64)
     U = A * q'
     U = U'
@@ -227,4 +229,17 @@ end
 
 
 
+#Spectral Tools
 
+
+function fft_from_signal(q,dt)
+    nt=length(q)
+    fhat=fft(q)
+    
+    PSD = fhat.*conj(fhat)/(nt)
+    PSD = real(fftshift(PSD))
+    freqs = fftshift(fftfreq(nt,1/dt))
+    idx = findall(x -> x>0, freqs)
+
+return PSD[idx], freqs[idx]
+end
