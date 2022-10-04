@@ -28,3 +28,4 @@ Settings
 |  0.1  | 0.25    | 0.2499  | 
 |  0.1  | 0.3     | 0.3004 |
 
+# <img src="https://github.com/carlodev/SEM/blob/master/test/SEM_vs_RAND.png" width="700" title="Spectras as the TI is changing">
