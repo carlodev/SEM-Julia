@@ -1,6 +1,6 @@
 
 include("SEM.jl")
-
+using DataFrames, XLSX
 σ = 0.1 #eddy dimensions, the same in all the directions
 b = 5.0
 a = 0.0
@@ -20,7 +20,7 @@ dt = 0.001
 U₀ = 1.0 #Convective Velocity
 
 
-TI = 0.5 #turbulence intensity
+TI = 0.1 #turbulence intensity
 
 #Isotropic turbulence
 u_p = (U₀ * TI)^2
@@ -102,10 +102,10 @@ PSD = 0.0
 vector_points = [[0.0, b/2, b/2]]
 for i=1:1:N_restart
     q = zeros(Nt, 3)
-for i = 1:1:Nt
-    q[i,:] = compute_uᵢₚ(vector_points, dt, Eddies, U₀, Vboxinfo)[1]
-   
-end
+    for i = 1:1:Nt
+        q[i,:] = compute_uᵢₚ(vector_points, dt, Eddies, U₀, Vboxinfo)[1]
+    
+    end
 
 
     U, Ek =  compute_U_k(q, A, U₀)
@@ -124,14 +124,36 @@ for i = 1:1:N_rand
 end
 
 
+PSD_data = DataFrame([PSD, freqs], [:PSD, :freqs])
+XLSX.writetable("test/psd_results_$TI.xlsx", "$TI" => PSD_data)
+
+TI_vec = 0.1:0.1:0.5
+PSD_data = DataFrame[]
+
+for i = eachindex(TI_vec)
+    TI = TI_vec[i]
+    filename = "test/psd_results_$TI.xlsx"
+    df_tmp = DataFrame(XLSX.readtable(filename, "$TI"))
+    push!(PSD_data, df_tmp)
+end
+
 
 plotlyjs()
 
 gr()
-Plots.plot(xaxis=:log, yaxis=:log, xlim = [0.5, 1e3], ylims =[1e-7, 1e2], xlabel="k", ylabel="E(k)", legend=:bottomright)
-Plots.plot!(freqs, PSD, label = "SEM")
+Plots.plot(xaxis=:log, yaxis=:log, xlim = [0.5, 1e3], ylims =[1e-7, 1e2], xlabel="k", ylabel="E(k)", legend=:bottomleft, xticks=[1,10,100,1000])
+for i = eachindex(TI_vec)
+    TI = TI_vec[i]
+    Plots.plot!(PSD_data[i].freqs, PSD_data[i].PSD, label = "SEM - TI = $TI")
+
+end
+
 Plots.plot!(freqs_rand, PSD_rand_tot, label = "RAND")
 Plots.plot!(k, E, linestyle=:dash, label = "E(k)∝k^-5/3")
 
+
+
+
+#Plots.plot!(freqs, PSD, label = "SEM - TI = $TI")
 #Plots.plot!(freqs_mean, PSD_mean, label = "SEM mean")
-#Plots.savefig("SEM_vs_RAND.pdf")
+Plots.savefig("SEM_vs_RAND.png")
