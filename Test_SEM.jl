@@ -15,12 +15,12 @@ Vboxinfo = Virtual_Box(y,z,σ)
 
 N = Vboxinfo.N #you can override it 
 t = 0
-dt = 0.1
+dt = 0.001
 
 U₀ = 1.0 #Convective Velocity
 
 
-TI = 0.3 #turbulence intensity
+TI = 0.5 #turbulence intensity
 
 #Isotropic turbulence
 u_p = (U₀ * TI)^2
@@ -31,11 +31,10 @@ Re_stress = [u_p 0.0 0.0;
 
 
 
-
-
 A = cholesky_decomposition(Re_stress)
 
 Eddies = initialize_eddies(N, σ, Vboxinfo)
+
 
 vector_points = [[0.0, b/2, b/2]]
 
@@ -57,14 +56,17 @@ Statistics.std(U)
 Statistics.std(Ek)
 
 
-Plots.plot(1:Nt, Ek)
+
 
 
 ## Plotting 3D iso curves (good for visualizing the distribution and evolution of the eddies)
 
 X, Y, Z = mgrid(x, y, z)
 vector_points = create_vector_points(x, y, z)
+
 value = compute_uᵢₚ(vector_points, dt, Eddies, U₀, Vboxinfo)[1]
+Eddies
+
 plotlyjs()
 iso_surfaces = isosurface(
     x=X[:],
@@ -87,9 +89,6 @@ io = PlotlyJS.plot(iso_surfaces, Layout(yaxis=attr(scaleanchor="x", scaleratio=1
 ## Power Spectral Density Analysis
 
 
-PSD_mean = 0.0
-freqs_mean = 0.0
-
 
 k = 0.1:1000
 E = (k).^(-5/3) .*100 #multiplied by 100 for shifting the curve in the top part
@@ -98,13 +97,14 @@ E = (k).^(-5/3) .*100 #multiplied by 100 for shifting the curve in the top part
 
 N_restart = 20
 freqs = 0.0   
-Nt = 1000
+Nt = 2000
 PSD = 0.0
 vector_points = [[0.0, b/2, b/2]]
 for i=1:1:N_restart
     q = zeros(Nt, 3)
 for i = 1:1:Nt
     q[i,:] = compute_uᵢₚ(vector_points, dt, Eddies, U₀, Vboxinfo)[1]
+   
 end
 
 
@@ -119,7 +119,7 @@ PSD_rand_tot = 0.0
 freqs_rand = 0.0
 for i = 1:1:N_rand
     rand_signal = randn(3000)
-    PSD_rand, freqs_rand = fft_from_signal(rand_signal.^2 ,dt)
+    PSD_rand, freqs_rand = fft_from_signal(3/2 .* rand_signal.^2 ,dt)
     PSD_rand_tot = PSD_rand_tot .+ 1/N_rand .*PSD_rand
 end
 
@@ -127,11 +127,11 @@ end
 
 plotlyjs()
 
-Plots.plot(xaxis=:log, yaxis=:log, xlim = [0.5, 1e3], ylims =[1e-7, 1e2], xlabel="k", ylabel="E(k)")
+gr()
+Plots.plot(xaxis=:log, yaxis=:log, xlim = [0.5, 1e3], ylims =[1e-7, 1e2], xlabel="k", ylabel="E(k)", legend=:bottomright)
 Plots.plot!(freqs, PSD, label = "SEM")
-
-#Plots.plot!(freqs_mean, PSD_mean, label = "SEM mean")
 Plots.plot!(freqs_rand, PSD_rand_tot, label = "RAND")
 Plots.plot!(k, E, linestyle=:dash, label = "E(k)∝k^-5/3")
 
-Plots.savefig("SEM_vs_RAND.pdf")
+#Plots.plot!(freqs_mean, PSD_mean, label = "SEM mean")
+#Plots.savefig("SEM_vs_RAND.pdf")
