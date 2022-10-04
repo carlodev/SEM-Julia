@@ -97,28 +97,73 @@ end
 
 
 
-"Compute a random position, between a and b, in one dimension, for an eddy"
-function random_position(b::Float64, a::Float64)
-    (rand() .- 0.5) .* (b - a) .+ (b + a) ./ 2
-end
 
 
 
+"Structure with the property of a single eddy"
 mutable struct SEM_EDDY
     eddy_num::Int64     # Eddy specification number
     σ::Float64  # Eddy length scale
-    X_pos::Float64      # Eddy's X position
-    Y_pos::Float64      # Eddy's Y position
-    Z_pos::Float64      # Eddy's Z position
-    X_int::Float64      # Eddy's X intensity
-    Y_int::Float64      # Eddy's Y intensity
-    Z_int::Float64      # Eddy's Z intensity
+    xᵢ::Vector{Float64} # Eddy's position in the computational box [x,y,z]
+    ϵᵢ::Vector{Float64}  # Eddy's intensity (+1 or -1) in [x,y,z]
+
+end
+
+
+"Volume box where the eddies are created"
+struct Virtual_Box
+    Y::Vector{Float64}
+    Z::Vector{Float64}
+    σ::Float64
+
+    N::Int64
+    V_b::Float64
+    Y_start::Float64
+    Y_end::Float64
+    Z_start::Float64
+    Z_end::Float64
+
+    function Virtual_Box(Y, Z, σ)
+        Y_start = Y[1] - σ
+        Y_end = Y[end] + σ
+        Z_start = Z[1] - σ
+        Z_end = Z[end] + σ
+  
+
+        Sₚ = (Y_end - Y_start) * (Z_end - Z_start)
+        Sₛ = σ * σ
+        N = Int(round(Sₚ / Sₛ))
+        V_b = 2*σ * (Y_end - Y_start) * (Z_end - Z_start)
+
+        new(Y, Z, σ, N, V_b, Y_start, Y_end, Z_start, Z_end)
+    end
+
 end
 
 
 
 
+"Initialize Eddy position and intensity"
+function initialize_eddies(N::Int64, σ::Float64, Vbinfo::Virtual_Box)
+    SEM_Eddy = SEM_EDDY[]
+    for i =1:1:N
+        ϵᵢ = rand((-1,1), 3)
+        xᵢ = new_rand_position(Vbinfo)
+        push!(SEM_Eddy, SEM_EDDY(i, σ,  xᵢ,  ϵᵢ))
+    end
+    return SEM_Eddy
+end
 
+
+"Random position of an eddy inside the Virtual Box"
+function new_rand_position(Vbinfo::Virtual_Box)
+
+    xx = (rand() .- 0.5) .* 2 .*Vbinfo.σ
+    yy = (rand() .- 0.5) .* (Vbinfo.Y_end - Vbinfo.Y_start) .+ (Vbinfo.Y_end + Vbinfo.Y_start) ./ 2
+    zz =(rand() .- 0.5) .* (Vbinfo.Z_end - Vbinfo.Z_start) .+ (Vbinfo.Z_end + Vbinfo.Z_start) ./ 2
+
+    return[xx,yy,zz]
+end
 
 
 
@@ -127,63 +172,29 @@ function uᵢ(vec_points::Vector{Vector{Float64}}, ϵᵢ::Float64, xᵢ::Vector{
     map(x -> ϵᵢ .* fσ((x .- xᵢ)./σ ), vec_points)
 end
 
-
-
-
-
-
-
-function xp(dt::Float64, xᵢ::Vector{Float64}, U₀::Float64, σ::Float64, b::Float64, a::Float64)
-    x_tmp = xᵢ[1] + dt * U₀
+"Compute the new position of all the Eddies. We consider only the convective velocity along x axis. If outside the Virtual Box, a new eddy is randomly generated inside the Virtual Box"
+function convect_eddy(dt, Eddy, U₀, σ, Vbinfo)
+    x_tmp = Eddy.xᵢ[1] + dt * U₀
     if x_tmp < σ
-        return [x_tmp, xᵢ[2], xᵢ[3]]
+        Eddy.xᵢ = [x_tmp, Eddy.xᵢ[2], Eddy.xᵢ[3]]
     else
-        xx = random_position(σ, -σ)
-        yy = random_position(b, a)
-        zz = random_position(b, a)
-        return [xx, yy, zz]
+        Eddy.xᵢ = new_rand_position(Vbinfo)
+        Eddy.ϵᵢ = rand((-1,1), 3)
     end
-
+    return Eddy
 end
 
-
-function eddy_number(b::Float64, a::Float64, σ::Float64)
-    Sₚ = (b - a) * (b - a)
-    Sₛ = σ * σ
-    N = Int(round(Sₚ / Sₛ))
-    Vb = 2*σ * (b - a) * (b - a)
-    return N, Vb
-end
-
-
-function initialize_eddy(b::Float64, a::Float64, σ::Float64, N::Int)
-    ϵᵢ = Float64[]
-    xᵢ₀ = Vector{Float64}[]
-
-    for i = 1:1:N
-        push!(ϵᵢ, rand((-1, 1)))
-
-        xx = random_position(σ, -σ)
-        yy = random_position(b, a)
-        zz = random_position(b, a)
-
-        push!(xᵢ₀, [xx, yy, zz])
+function compute_uᵢₚ(x::Vector{Vector{Float64}}, dt::Float64, Eddies::Vector{SEM_EDDY}, U₀::Float64, Vbinfo::Virtual_Box)
+    contribution = zeros(length(x),3)
+    for j = 1:1:length(Eddies)
+        Eddies[j] = convect_eddy(dt, Eddies[j], U₀, σ,Vbinfo)
+        contribution[:,1] .+= uᵢ(x, Eddies[j].ϵᵢ[1], Eddies[j].xᵢ, σ)
+        contribution[:,2] .+= uᵢ(x, Eddies[j].ϵᵢ[2], Eddies[j].xᵢ, σ)
+        contribution[:,3] .+= uᵢ(x, Eddies[j].ϵᵢ[3], Eddies[j].xᵢ, σ)
 
     end
 
-    return ϵᵢ, xᵢ₀
-end
-
-
-
-function compute_uᵢₚ(x::Vector{Vector{Float64}}, dt::Float64, xᵢ::Vector{Vector{Float64}}, ϵᵢ::Vector{Float64}, U₀::Float64, σ, N::Int, b::Float64, a::Float64)
-    contribution = zeros(length(x))
-    for j = 1:1:N
-        xᵢ[j] = xp(dt, xᵢ[j], U₀, σ, b, a)
-        contribution .+= uᵢ(x, ϵᵢ[j], xᵢ[j], σ)
-    end
-
-    return sqrt(Vb/(σ^3)) ./ (N)^0.5 .* contribution, xᵢ
+    return sqrt(Vbinfo.V_b/(Vbinfo.σ^3)) ./ (Vbinfo.N)^0.5 .* contribution, Eddies
 end
 
 
@@ -202,10 +213,15 @@ function create_vector_points(x, y, z)
 end
 
 
-function compute_U_k(u1::Vector{Float64}, u2::Vector{Float64}, u3::Vector{Float64}, A::Matrix{Float64}, U₀::Float64)
-    U = Re_stress * [u1, u2, u3]
+function compute_U_k(q::Matrix{Float64}, A::Matrix{Float64}, U₀::Float64)
+    U = A * q'
+    U = U'
     U[1] = U[1] .+ U₀
-    k = 0.5.* (u1.^2 .+ u2.^2 .+ u3.^2)
+    k = zeros(size(U)[1])
+    for i = 1:1:size(U)[1]
+        k[i] = 0.5.* (U[i,1].^2 .+ U[i,2].^2 .+ U[i,3].^2)
+
+    end
     return U, k    
 end
 

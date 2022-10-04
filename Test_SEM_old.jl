@@ -1,5 +1,6 @@
 
-include("SEM.jl")
+include("SEM_old.jl")
+using Statistics
 
 σ = 0.1 #eddy dimensions, the same in all the directions
 b = 5.0
@@ -9,21 +10,13 @@ x = -σ:0.1:+σ
 y = a:0.1:b
 z = a:0.1:b
 
-
-Vboxinfo = Virtual_Box(y,z,σ)
-
-N = Vboxinfo.N #you can override it 
-Eddies = initialize_eddies(N, σ, Vboxinfo)
-
-
-
 t = 0
 dt = 0.001
 
 U₀ = 1.0
 
 
-TI = 0.6 #turbulence intensity
+TI = 0.2 #turbulence intensity
 
 
 #Isotropic turbulence
@@ -40,44 +33,53 @@ A = cholesky_decomposition(Re_stress)
 
 
 
+a = a - σ #extending the computational box
+b = b + σ #extending the computational box
+N, VVb = eddy_number(b, a, σ)
+ϵᵢ, xᵢ₀ = initialize_eddy(b, a, σ, N)
+xᵢ=xᵢ₀
+ϵᵢ
+xᵢ
 
 
 
+vector_points = create_vector_points(x, y, z)
+value = compute_uᵢₚ(vector_points, dt, xᵢ, ϵᵢ, U₀, σ, N, b, a)[1]
 
 
-vector_points = [[0.0, b/2, b/2]]
+vector_points = [[0.0, 2.5, 2.5]]
 
 
-
-Nt = 10000
-q = zeros(Nt, 3)
+Nt = 1000
+q = Float64[]
 
 for i = 1:1:Nt
-    q[i,:] = compute_uᵢₚ(vector_points, dt, Eddies, U₀, Vboxinfo)[1]
-
+   
+    push!(q, compute_uᵢₚ(vector_points, dt, xᵢ, ϵᵢ, U₀, σ, N, b, a)[1][1])
 end
 
-U, Ek =  compute_U_k(q, A, U₀)
 
-Plots.plot(1:Nt, Ek)
+Vb = (b-a)*(b-a)*2*σ
+q = sqrt(Vb/(σ^3)) .*q
 
-Statistics.std(U[:, 2])
 
+U, Ek =  compute_U_k(q, q, q, A, U₀)
+
+Plots.plot(1:Nt, U[2])
+
+
+Statistics.std(U[2])
 
 
 X, Y, Z = mgrid(x, y, z)
-
-vector_points = create_vector_points(x, y, z)
-value = compute_uᵢₚ(vector_points, dt, Eddies, U₀, Vboxinfo)[1]
-
 plotlyjs()
 iso_surfaces = isosurface(
     x=X[:],
     y=Y[:],
     z=Z[:],
-    value=value[:,1],
-    isomin=0.1,
-    isomax=1,
+    value=value[:],
+    isomin=0.001,
+    isomax=0.02,
     surface_count=3,
     opacity=0.5,
     caps=attr(x_show=false, y_show=false)
@@ -111,23 +113,24 @@ freqs_mean = 0.0
 
 
 k = 0.1:100
-E = (k).^(-5/3)
+E = k.^(-5/3)
 
 
 
-N_restart = 20
+N_restart = 10
 freqs = 0.0   
-Nt = 2000
+Nt = 1000
 PSD = 0.0
-vector_points = [[0.0, b/2, b/2]]
+
 for i=1:1:N_restart
-    q = zeros(Nt, 3)
+q = Float64[]
+
 for i = 1:1:Nt
-    q[i,:] = compute_uᵢₚ(vector_points, dt, Eddies, U₀, Vboxinfo)[1]
+    push!(q, compute_uᵢₚ(vector_points, dt, xᵢ, ϵᵢ, U₀, σ, N, b, a)[1][1])
 end
 
-
-    U, Ek =  compute_U_k(q, A, U₀)
+    q = sqrt(Vb/(σ^3)) .*q
+    U, Ek =  compute_U_k(q, q, q, A, U₀)
     PSD_tmp, freqs = fft_from_signal(Ek, dt)
     PSD = PSD .+ PSD_tmp./N_restart
 
