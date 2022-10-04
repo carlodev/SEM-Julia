@@ -76,7 +76,7 @@ Settings
 - `x = -σ:0.1:+σ`
 - `y = 0:0.1:5`
 - `z = 0:0.1:5`
-- evaluation point `[0.0, b/2, b/2]`, in the middle of the domain
+- evaluation point `[0.0, 2.5, 2.5]`, in the middle of the domain
 - Numbers of evaluations 2e4
 
 |  dt (s) | TI      | rms(U)  |  
