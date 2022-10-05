@@ -28,7 +28,7 @@ Vboxinfo = Virtual_Box(y,z,σ)
 N = Vboxinfo.N #you can override it 
 ```
 
-Then you initialize the eddies in the domain with random values of position and intensity. You have to specify the time-step, `dt`. Then the Reynolds stress tensor. Here homegeneous and isotropic turbulence is considered, so $R_{ij} = 0, i!=j; R_{ij} != 0, i=j$, and the terms are computed from the turbulence intensity (`TI`). Then the Matrix `A` is created using the `cholesky_decomposition`.
+Then you initialize the eddies in the domain with random values of position and intensity. You have to specify the time-step, `dt`. Then the Reynolds stress tensor. Here homegeneous and isotropic turbulence is considered, so $R_{ij} = 0, i \neq j; R_{ij} \neq 0, i=j$, and the terms are computed from the turbulence intensity (`TI`). Then the Matrix `A` is created using the `cholesky_decomposition`.
 
 
 ```julia
