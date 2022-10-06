@@ -1,1 +1,0 @@
-Translation in Julia of the fortran code https://github.com/blackcata/SEM.git
