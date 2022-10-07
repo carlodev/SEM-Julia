@@ -173,14 +173,6 @@ function uᵢ(vec_points::Vector{Vector{Float64}}, ϵᵢ::Float64, xᵢ::Vector{
     map(x -> ϵᵢ .* fσ((x .- xᵢ)./σ ), vec_points)
 end
 
-
-function uᵢ(vec_points::Vector{Float64}, ϵᵢ::Float64, xᵢ::Vector{Float64}, σ::Float64)
-    ϵᵢ .* fσ((vec_points .- xᵢ)./σ )
-end
-
-
-
-
 "Compute the new position of all the Eddies. We consider only the convective velocity along x axis. If outside the Virtual Box, a new eddy is randomly generated inside the Virtual Box"
 function convect_eddy(dt, Eddy, U₀, σ, Vbinfo)
     x_tmp = Eddy.xᵢ[1] + dt * U₀
@@ -207,18 +199,6 @@ function compute_uᵢₚ(x::Vector{Vector{Float64}}, dt::Float64, Eddies::Vector
     return sqrt(Vbinfo.V_b/(Vbinfo.σ^3)) ./ (Vbinfo.N)^0.5 .* contribution, Eddies
 end
 
-"Non-convected version of compute_ui"
-function compute_uᵢₚ(x::Vector{Float64}, Eddies::Vector{SEM_EDDY}, U₀::Float64, Vbinfo::Virtual_Box)
-    contribution = zeros(length(x))
-    for j = 1:1:length(Eddies)
-        contribution[1] += uᵢ(x, Eddies[j].ϵᵢ[1], Eddies[j].xᵢ, σ)
-        contribution[2] += uᵢ(x, Eddies[j].ϵᵢ[2], Eddies[j].xᵢ, σ)
-        contribution[3] += uᵢ(x, Eddies[j].ϵᵢ[3], Eddies[j].xᵢ, σ)
-
-    end
-
-    return sqrt(Vbinfo.V_b/(Vbinfo.σ^3)) ./ (Vbinfo.N)^0.5 .* contribution
-end
 
 
 function create_vector_points(x, y, z)
@@ -245,15 +225,6 @@ function compute_U_k(q::Matrix{Float64}, A::Matrix{Float64}, U₀::Float64)
 
     end
     return U, k    
-end
-
-"Non*vectorized version"
-function compute_U(q::Vector{Float64}, A::Matrix{Float64}, U₀::Float64)
-    U = A * q
-    U = U
-    U[1] = U[1] .+ U₀
-    
-    return U  
 end
 
 
