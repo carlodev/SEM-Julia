@@ -28,4 +28,4 @@ Settings
 |  0.1  | 0.25    | 0.2499  | 
 |  0.1  | 0.3     | 0.3004 |
 
-# <img src="https://github.com/carlodev/SEM/blob/master/test/SEM_vs_RAND.png" width="1200" title="Spectra obtained from SEM">
+# <img src="https://github.com/carlodev/SEM/blob/master/test/SEM_vs_RAND.png" width="400" title="Spectra obtained from SEM">
